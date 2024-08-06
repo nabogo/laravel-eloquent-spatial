@@ -36,10 +36,9 @@ class GeometryCast implements CastsAttributes
         }
 
         if ($value instanceof ExpressionContract) {
-            $wkt = $this->extractWktFromExpression($value, $model->getConnection());
-            $srid = $this->extractSridFromExpression($value, $model->getConnection());
+            $expressionValues = $this->extractFromExpression($value, $model->getConnection());
 
-            return $this->className::fromWkt($wkt, $srid);
+            return $this->className::fromWkt($expressionValues['wkt'], $expressionValues['srid']);
         }
 
         return $this->className::fromWkb($value);
@@ -66,33 +65,37 @@ class GeometryCast implements CastsAttributes
             return $value;
         }
 
-        if (! ($value instanceof $this->className)) {
+        if (! $this->isCorrectGeometryType($value)) {
             $geometryType = is_object($value) ? $value::class : gettype($value);
             throw new InvalidArgumentException(
                 sprintf('Expected %s, %s given.', $this->className, $geometryType)
             );
         }
 
+        /** @var Geometry $value */
+
         return $value->toSqlExpression($model->getConnection());
     }
 
-    private function extractWktFromExpression(ExpressionContract $expression, Connection $connection): string
+    private function isCorrectGeometryType(mixed $value): bool
     {
-        $grammar = $connection->getQueryGrammar();
-        $expressionValue = $expression->getValue($grammar);
+        if ($this->className === Geometry::class && $value instanceof Geometry) {
+            return true;
+        }
 
-        preg_match('/ST_GeomFromText\(\'(.+)\', .+(, .+)?\)/', (string) $expressionValue, $match);
-
-        return $match[1];
+        return $value instanceof $this->className && get_class($value) === $this->className;
     }
 
-    private function extractSridFromExpression(ExpressionContract $expression, Connection $connection): int
+    /**
+     * @return array{wkt: string, srid: int}
+     */
+    private function extractFromExpression(ExpressionContract $expression, Connection $connection): array
     {
         $grammar = $connection->getQueryGrammar();
         $expressionValue = $expression->getValue($grammar);
 
-        preg_match('/ST_GeomFromText\(\'.+\', (.+)(, .+)?\)/', (string) $expressionValue, $match);
+        preg_match("/ST_GeomFromText\(\s*'([^']+)'\s*(?:,\s*(\d+))?\s*(?:,\s*'([^']+)')?\s*\)/", (string) $expressionValue, $matches);
 
-        return (int) $match[1];
+        return ['wkt' => $matches[1], 'srid' => (int) ($matches[2] ?? 0)];
     }
 }

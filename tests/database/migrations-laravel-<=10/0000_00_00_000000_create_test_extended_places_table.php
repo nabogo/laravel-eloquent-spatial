@@ -4,16 +4,15 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateTestPlacesTable extends Migration
+class CreateTestExtendedPlacesTable extends Migration
 {
     public function up(): void
     {
-        Schema::create('test_places', function (Blueprint $table): void {
+        Schema::create('test_extended_places', function (Blueprint $table): void {
             $table->id();
             $table->timestamps();
             $table->string('name');
             $table->string('address');
-            $table->geometry('geometry')->nullable();
             $table->point('point')->isGeometry()->nullable();
             $table->multiPoint('multi_point')->isGeometry()->nullable();
             $table->lineString('line_string')->isGeometry()->nullable();
@@ -30,6 +29,6 @@ class CreateTestPlacesTable extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('test_places');
+        Schema::dropIfExists('test_extended_places');
     }
 }
